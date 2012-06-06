@@ -67,10 +67,8 @@ define(function() {
 		var p = new Promise();
 
 		p.then = function(callback) {
-			var nextValue;
 			try {
-				if(callback) nextValue = callback(value);
-				return promiseFor(nextValue === undef ? value : nextValue);
+				return promiseFor(callback ? callback(value) : value);
 			} catch(e) {
 				return rejected(e);
 			}
@@ -92,15 +90,8 @@ define(function() {
 		var p = new Promise();
 
 		p.then = function(callback, errback) {
-			var nextValue;
 			try {
-				if(errback) {
-					nextValue = errback(reason);
-					return promiseFor(nextValue === undef ? reason : nextValue);
-				}
-
-				return rejected(reason);
-
+				return errback ? promiseFor(errback(reason)) : rejected(reason);
 			} catch(e) {
 				return rejected(e);
 			}

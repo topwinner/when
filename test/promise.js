@@ -1,8 +1,9 @@
 (function(buster, when) {
 
-var assert, fail;
+var assert, refute, fail;
 
 assert = buster.assert;
+refute = buster.refute;
 fail = buster.assertions.fail;
 
 var defer, isFrozen, undef;
@@ -114,7 +115,7 @@ buster.testCase('promise', {
 		d.resolve(1);
 	},
 
-	'should forward previous result instead of undefined': function(done) {
+	'should forward undefined for resolution handler': function(done) {
 		var d = when.defer();
 
 		d.promise.then(
@@ -124,7 +125,7 @@ buster.testCase('promise', {
 			fail
 		).then(
 			function(val) {
-				assert.equals(val, 1);
+				refute.defined(val);
 			},
 			fail
 		).then(done, done);
@@ -145,7 +146,7 @@ buster.testCase('promise', {
 			}
 		).then(
 			function(val) {
-				assert.equals(val, 1);
+				refute.defined(val);
 			},
 			fail
 		).then(done, done);
