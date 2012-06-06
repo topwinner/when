@@ -69,10 +69,34 @@ buster.testCase('promise', {
 		).then(done, done);
 	},
 
-	'should allow promised rejection value': function(done) {
+	'should allow rejected promise for resolution value': function(done) {
 		var d = when.defer();
 
 		d.resolve(when.reject(1));
+		d.promise.then(
+			fail,
+			function(val) {
+				assert.equals(val, 1);
+			}
+		).then(done, done);
+	},
+
+	'should allow promised rejection value': function(done) {
+		var d = when.defer();
+
+		d.reject(when(1));
+		d.promise.then(
+			fail,
+			function(val) {
+				assert.equals(val, 1);
+			}
+		).then(done, done);
+	},
+
+	'should allow rejected promise for rejection value': function(done) {
+		var d = when.defer();
+
+		d.reject(when.reject(1));
 		d.promise.then(
 			fail,
 			function(val) {

@@ -21,7 +21,7 @@ define(function() {
 	//
 
 	when.defer     = defer;
-	when.reject    = reject;
+	when.reject    = createRejected;
 	when.isPromise = isPromise;
 
 	when.all       = all;
@@ -110,7 +110,7 @@ define(function() {
 	 *
 	 * @return {Promise} rejected {@link Promise}
 	 */
-	function reject(promiseOrValue) {
+	function createRejected(promiseOrValue) {
 		return when(promiseOrValue, function(value) {
 			return rejected(value);
 		});
@@ -198,7 +198,7 @@ define(function() {
 		 * @param err anything
 		 */
 		function reject(err) {
-			resolve(rejected(err));
+			complete(createRejected(err));
 		}
 
 		/**
