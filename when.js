@@ -70,7 +70,7 @@ define(function() {
 			var nextValue;
 			try {
 				if(callback) nextValue = callback(value);
-				return promise(nextValue === undef ? value : nextValue);
+				return promiseFor(nextValue === undef ? value : nextValue);
 			} catch(e) {
 				return rejected(e);
 			}
@@ -96,7 +96,7 @@ define(function() {
 			try {
 				if(errback) {
 					nextValue = errback(reason);
-					return promise(nextValue === undef ? reason : nextValue);
+					return promiseFor(nextValue === undef ? reason : nextValue);
 				}
 
 				return rejected(reason);
@@ -195,7 +195,7 @@ define(function() {
 		 * @param val anything
 		 */
 		function resolve(val) {
-			complete(resolved(val));
+			complete(promiseFor(val));
 		}
 
 		/**
@@ -207,7 +207,7 @@ define(function() {
 		 * @param err anything
 		 */
 		function reject(err) {
-			complete(rejected(err));
+			resolve(rejected(err));
 		}
 
 		/**
@@ -342,7 +342,7 @@ define(function() {
 	function when(promiseOrValue, callback, errback, progressHandler) {
 		// Get a promise for the input promiseOrValue
 		// See promise()
-		var trustedPromise = promise(promiseOrValue);
+		var trustedPromise = promiseFor(promiseOrValue);
 
 		// Register promise handlers
 		return trustedPromise.then(callback, errback, progressHandler);
@@ -366,7 +366,7 @@ define(function() {
 	 *   * the resolution value of promiseOrValue if it's a foreign promise, or
 	 *   * promiseOrValue if it's a value
 	 */
-	function promise(promiseOrValue) {
+	function promiseFor(promiseOrValue) {
 		var promise, deferred;
 
 		if(promiseOrValue instanceof Promise) {
@@ -391,8 +391,9 @@ define(function() {
 			} else {
 				// It's a value, not a promise.  Create an already-resolved promise
 				// for it.
-				deferred.resolve(promiseOrValue);
-				promise = deferred.promise;
+//				deferred.resolve(promiseOrValue);
+//				promise = deferred.promise;
+				return resolved(promiseOrValue);
 			}
 		}
 

@@ -56,6 +56,30 @@ buster.testCase('promise', {
 		assert.isFunction(defer().promise.then(null, null, f).then);
 	},
 
+	'should allow promised resolution value': function(done) {
+		var d = when.defer();
+
+		d.resolve(when(1));
+		d.promise.then(
+			function(val) {
+				assert.equals(val, 1);
+			},
+			fail
+		).then(done, done);
+	},
+
+	'should allow promised rejection value': function(done) {
+		var d = when.defer();
+
+		d.resolve(when.reject(1));
+		d.promise.then(
+			fail,
+			function(val) {
+				assert.equals(val, 1);
+			}
+		).then(done, done);
+	},
+
 	'should forward result when callback is null': function(done) {
 		var d = when.defer();
 
