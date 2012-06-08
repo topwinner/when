@@ -186,7 +186,7 @@ define(function() {
 		 * @param val anything
 		 */
 		function resolve(val) {
-			complete(promiseFor(val));
+			complete(val);
 		}
 
 		/**
@@ -231,7 +231,8 @@ define(function() {
 		 * @param completed {Promise} the completed value of this deferred
 		 */
 		complete = function(completed) {
-			var listener, i = 0;
+
+			completed = promiseFor(completed);
 
 			// Replace _then with one that directly notifies with the result.
 			_then = completed.then;
@@ -252,6 +253,7 @@ define(function() {
 
 			// Notify listeners
 			// Traverse all listeners registered directly with this Deferred
+			var listener, i = 0;
 
 			while (listener = listeners[i++]) {
 				listener(completed);
@@ -368,8 +370,8 @@ define(function() {
 			// It's not a when.js promise.  Check to see if it's a foreign promise
 			// or a value.
 
-			deferred = defer();
 			if(isPromise(promiseOrValue)) {
+				deferred = defer();
 				// It's a compliant promise, but we don't know where it came from,
 				// so we don't trust its implementation entirely.  Introduce a trusted
 				// middleman when.js promise
@@ -382,8 +384,6 @@ define(function() {
 			} else {
 				// It's a value, not a promise.  Create an already-resolved promise
 				// for it.
-//				deferred.resolve(promiseOrValue);
-//				promise = deferred.promise;
 				return resolved(promiseOrValue);
 			}
 		}
