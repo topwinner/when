@@ -42,13 +42,11 @@ buster.testCase('when.some', {
 		when.some([], 1,
 			function(result) {
 				assert.equals(result, []);
-				done();
 			},
-			function() {
-				buster.fail();
-				done();
+			function(e) {
+				fail(e);
 			}
-		);
+		).always(done);
 	},
 
 	'should resolve values array': function(done) {
@@ -127,15 +125,16 @@ buster.testCase('when.some', {
 		).then(done, done);
 	},
 
-	'should resolve to empty array when input promise does not resolve to array': function(done) {
-		when.some(resolved(1), 1,
+	'should resolve object properties': function(done) {
+		var expected = { a: 1, b: 2 };
+
+		when.some(expected, 1,
 			function(result) {
-				assert.equals(result, []);
+				assert.equals(result, expected);
 			},
 			fail
 		).then(done, done);
 	}
-
 
 });
 })(

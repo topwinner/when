@@ -12,7 +12,7 @@
 
 (function(define) {
 define(function() { "use strict";
-	var freeze, reduceArray, slice, undef;
+	var freeze, reduceArray, slice, owns, forEachElement, undef;
 
 	// Public API
 
@@ -399,17 +399,19 @@ define(function() { "use strict";
 
 		return when(promisesOrValues, function(promisesOrValues) {
 
-			var toResolve, results, deferred, resolver, rejecter, handleProgress, len, i;
+			var toResolve, results, deferred, resolver, rejecter, handleProgress, forEach;
 
-			len = promisesOrValues.length >>> 0;
-
-			toResolve = Math.max(0, Math.min(howMany, len));
-			results = [];
 			deferred = defer();
 
-			// Wrapper so that resolver can be replaced
-			function resolve(val) {
-				resolver(val);
+			if(promisesOrValues instanceof Array) {
+				results = [];
+				toResolve = Math.max(0, Math.min(howMany, promisesOrValues.length >>> 0));
+				forEach = forEachElement;
+			} else {
+				results = {};
+				toResolve = 0;
+				forEachKey(promisesOrValues, function() { toResolve++; });
+				forEach = forEachKey;
 			}
 
 			// Wrapper so that rejecter can be replaced
@@ -443,46 +445,26 @@ define(function() { "use strict";
 				// the returned promise when toResolve reaches zero.
 				// Overwrites resolver var with a noop once promise has
 				// be resolved to cover case where n < promises.length
-				resolver = function(val) {
+				resolver = function(val, key) {
 					// This orders the values based on promise resolution order
 					// Another strategy would be to use the original position of
 					// the corresponding promise.
-					results.push(val);
+					results[key] = val;
 					if (!--toResolve) {
 						deferred.resolve(results);
 					}
 				};
 
-				forEach(promisesOrValues, function(p) {
-					when(p, resolve, reject, progress);
+				forEach(promisesOrValues, function(p, key) {
+					when(p,
+						function(val) { resolver(val, key); },
+						reject,
+						progress);
 				});
 			}
 
 			return when(deferred, callback, errback, progressHandler);
 		});
-	}
-
-	var forEach = Array.prototype.forEach
-		? function(array, lambda) {
-			return array.forEach(lambda);
-		}
-		: function (array, lambda) {
-			var i, len;
-			for(i = 0, len = array.length; i < len; ++i) {
-				if(i in array) {
-					lambda(array[i], i);
-				}
-			}
-		};
-
-	var owns = Object.prototype.hasOwnProperty;
-
-	function forEachKey(object, lambda) {
-		for(var p in object) {
-			if(owns.call(object, p)) {
-				lambda(object[p], p);
-			}
-		}
 	}
 
 	/**
@@ -503,11 +485,11 @@ define(function() { "use strict";
 		checkCallbacks(1, arguments);
 
 		return when(promisesOrValues, function(promisesOrValues) {
-			return _reduce(promisesOrValues, reduceIntoArray, []);
+			return _reduce(promisesOrValues, reduceInto, []);
 		}).then(callback, errback, progressHandler);
 	}
 
-	function reduceIntoArray(current, val, i) {
+	function reduceInto(current, val, i) {
 		current[i] = val;
 		return current;
 	}
@@ -564,26 +546,28 @@ define(function() { "use strict";
 	 */
 	function _map(promisesOrValues, mapFunc) {
 
-		var results, len, i;
+		var results, iterate;
 
-		// Since we know the resulting length, we can preallocate the results
-		// array to avoid array expansions.
-		len = promisesOrValues.length >>> 0;
-		results = new Array(len);
+		if(promisesOrValues instanceof Array) {
+			results = [];
+			iterate = forEachElement;
+		} else {
+			results = {};
+			iterate = forEachKey;
+		}
 
 		// Since mapFunc may be async, get all invocations of it into flight
 		// asap, and then use reduce() to collect all the results
-		for(i = 0; i < len; i++) {
-			if(i in promisesOrValues)
-				results[i] = when(promisesOrValues[i], mapFunc);
-		}
+		iterate(promisesOrValues, function(val, i) {
+			results[i] = when(val, mapFunc);
+		});
 
 		// Could use all() here, but that would result in another array
 		// being allocated, i.e. map() would end up allocating 2 arrays
 		// of size len instead of just 1.  Since all() uses reduce()
 		// anyway, avoid the additional allocation by calling reduce
 		// directly.
-		return _reduce(results, reduceIntoArray, results);
+		return _reduce(results, reduceInto, results);
 	}
 
 	/**
@@ -620,17 +604,13 @@ define(function() { "use strict";
 	 */
 	function _reduce(promisesOrValues, reduceFunc, initialValue) {
 
-		var total, args;
-
-		total = promisesOrValues.length;
-
 		// Wrap the supplied reduceFunc with one that handles promises and then
 		// delegates to the supplied.
-		args = [
+		var args = [
 			function (current, val, i) {
 				return when(current, function (c) {
 					return when(val, function (value) {
-						return reduceFunc(c, value, i, total);
+						return reduceFunc(c, value, i, promisesOrValues);
 					});
 				});
 			}
@@ -638,7 +618,8 @@ define(function() { "use strict";
 
 		if (arguments.length > 2) args.push(initialValue);
 
-		return reduceArray.apply(promisesOrValues, args);
+		return (promisesOrValues instanceof Array ? reduceArray : reduceKeys)
+			.apply(promisesOrValues, args);
 	}
 
 	/**
@@ -691,6 +672,27 @@ define(function() { "use strict";
 	function noop() {}
 
 	slice = [].slice;
+	owns = Object.prototype.hasOwnProperty;
+
+	forEachElement = Array.prototype.forEach
+		? function(array, lambda) {
+		array.forEach(lambda);
+	}
+		: function (array, lambda) {
+		for(var i = 0, len = array.length; i < len; ++i) {
+			if(i in array) {
+				lambda(array[i], i);
+			}
+		}
+	};
+
+	function forEachKey(object, lambda) {
+		for(var p in object) {
+			if(owns.call(object, p)) {
+				lambda(object[p], p);
+			}
+		}
+	}
 
 	// ES5 reduce implementation if native not available
 	// See: http://es5.github.com/#x15.4.4.21 as there are many
@@ -739,6 +741,26 @@ define(function() { "use strict";
 
 			return reduced;
 		};
+
+	function reduceKeys(object, reduceFunc, initialVal) {
+		var reduced, p;
+
+		if(arguments.length > 2) {
+			reduced = initialVal;
+		} else {
+			for(p in object) {
+				if(owns.call(object, p)) {
+					reduced = object[p];
+				}
+			}
+		}
+
+		forEachKey(object, function(val, key) {
+			reduced = reduceFunc(reduced, val, key);
+		});
+
+		return reduced;
+	}
 
 	return freeze(when);
 });
