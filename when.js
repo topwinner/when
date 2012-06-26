@@ -427,7 +427,7 @@ define(function() { "use strict";
 				deferred.resolve(results);
 
 			} else {
-				deferred.promise.always(function complete() {
+				deferred.promise.always(function() {
 					resolver = rejecter = handleProgress = noop;
 				});
 
@@ -448,22 +448,41 @@ define(function() { "use strict";
 					// Another strategy would be to use the original position of
 					// the corresponding promise.
 					results.push(val);
-
 					if (!--toResolve) {
 						deferred.resolve(results);
 					}
 				};
 
-				// TODO: Replace while with forEach
-				for(i = 0; i < len; ++i) {
-					if(i in promisesOrValues) {
-						when(promisesOrValues[i], resolve, reject, progress);
-					}
-				}
+				forEach(promisesOrValues, function(p) {
+					when(p, resolve, reject, progress);
+				});
 			}
 
 			return when(deferred, callback, errback, progressHandler);
 		});
+	}
+
+	var forEach = Array.prototype.forEach
+		? function(array, lambda) {
+			return array.forEach(lambda);
+		}
+		: function (array, lambda) {
+			var i, len;
+			for(i = 0, len = array.length; i < len; ++i) {
+				if(i in array) {
+					lambda(array[i], i);
+				}
+			}
+		};
+
+	var owns = Object.prototype.hasOwnProperty;
+
+	function forEachKey(object, lambda) {
+		for(var p in object) {
+			if(owns.call(object, p)) {
+				lambda(object[p], p);
+			}
+		}
 	}
 
 	/**
