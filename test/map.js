@@ -12,7 +12,7 @@ function mapper(val) {
 }
 
 function deferredMapper(val) {
-	return delay(mapper(val), Math.random()*10);
+	return delay(mapper(val), Math.random()*100);
 }
 
 buster.testCase('when.map', {
@@ -88,6 +88,6 @@ buster.testCase('when.map', {
 });
 })(
 	this.buster     || require('buster'),
-	this.when       || require('../debug'),
+	this.when       || require('..'),
 	this.when_delay || require('../delay')
 );
