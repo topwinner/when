@@ -178,8 +178,17 @@ define(['./when'], function(when) {
 			return toString('Resolver', id, status, value);
 		};
 
+		origProgress = d.resolver.progress;
+		d.progress = d.resolver.progress = function(update) {
+			if(value !== pending) alreadyResolved();
+
+			return origProgress.apply(undef, arguments);
+		};
+
 		origResolve = d.resolver.resolve;
 		d.resolve = d.resolver.resolve = function(val) {
+			if(value !== pending) alreadyResolved();
+
 			value = val;
 			status = 'resolving';
 			return origResolve.apply(undef, arguments);
@@ -187,6 +196,8 @@ define(['./when'], function(when) {
 
 		origReject = d.resolver.reject;
 		d.reject = d.resolver.reject = function(err) {
+			if(value !== pending) alreadyResolved();
+
 			value = err;
 			status = 'REJECTING';
 			return origReject.apply(undef, arguments);
@@ -238,6 +249,10 @@ define(['./when'], function(when) {
 		freeze(d.resolver);
 
 		return d;
+	}
+
+	function alreadyResolved() {
+		throw new Error('already completed');
 	}
 
 	whenDebug.defer = deferDebug;

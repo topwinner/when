@@ -332,36 +332,26 @@ define(function() { "use strict";
 		 * Transition from pre-resolution state to post-resolution state, notifying
 		 * all listeners of the resolution or rejection
 		 * @private
-		 * @param completed {Promise} the completed value of this deferred
+		 * @param value {Promise} the completed value of this deferred
 		 */
-		_resolve = function(completed) {
+		_resolve = function(value) {
 			var listener, i = 0;
 
-			completed = resolve(completed);
+			// Get a promise for value
+			value = resolve(value);
 
 			// Replace _then with one that directly notifies with the result.
-			_then = completed.then;
-
-			// Replace complete so that this Deferred can only be completed
-			// once. Also Replace _progress, so that subsequent attempts to issue
-			// progress throw.
-			_resolve = _progress = function alreadyResolved() {
-				// TODO: Consider silently returning here so that parties who
-				// have a reference to the resolver cannot tell that the promise
-				// has been resolved using try/catch
-				throw new Error("already completed");
-			};
+			// Replace _resolve so that this Deferred can only be resolved once
+			_then = value.then;
+			_resolve = _progress = noop;
 
 			// Notify listeners
-			while (listener = listeners[i++]) {
-				listener(completed);
-			}
+			while (listener = listeners[i++]) listener(value);
 
-			// Free progressHandlers array since we'll never issue progress events
-			// for this promise again now that it's completed
+			// Free progressHandlers array since we'll never issue progress events again
 			progressHandlers = listeners = undef;
 
-			return completed;
+			return value;
 		};
 
 		return deferred;
@@ -394,13 +384,14 @@ define(function() { "use strict";
 	 * @returns {Promise}
 	 */
 	function some(promisesOrValues, howMany, callback, errback, progressHandler) {
+		// TODO: Consider rejecting only when N (or promises.length - N?)
+		// promises have been rejected instead of only one?
 
 		checkCallbacks(2, arguments);
 
 		return when(promisesOrValues, function(promisesOrValues) {
 
-			var toResolve, results, deferred, resolver, rejecter, handleProgress;
-
+			var toResolve, results, deferred, resolver;
 			deferred = defer();
 
 			if(promisesOrValues instanceof Array) {
@@ -412,33 +403,11 @@ define(function() { "use strict";
 				forEachKey(promisesOrValues, function() { toResolve++; });
 			}
 
-			// Wrapper so that rejecter can be replaced
-			function reject(err) {
-				rejecter(err);
-			}
-
-			// Wrapper so that progress can be replaced
-			function progress(update) {
-				handleProgress(update);
-			}
-
 			// No items in the input, resolve immediately
 			if (!toResolve) {
 				deferred.resolve(results);
 
 			} else {
-				deferred.promise.always(function() {
-					resolver = rejecter = handleProgress = noop;
-				});
-
-				// Rejecter for promises.  Rejects returned promise
-				// immediately, and overwrites rejecter var with a noop
-				// once promise to cover case where n < promises.length.
-				// TODO: Consider rejecting only when N (or promises.length - N?)
-				// promises have been rejected instead of only one?
-				rejecter = deferred.reject;
-				handleProgress = deferred.progress;
-
 				// Resolver for promises.  Captures the value and resolves
 				// the returned promise when toResolve reaches zero.
 				// Overwrites resolver var with a noop once promise has
@@ -449,6 +418,7 @@ define(function() { "use strict";
 					// the corresponding promise.
 					results[key] = val;
 					if (!--toResolve) {
+						resolver = noop;
 						deferred.resolve(results);
 					}
 				};
@@ -456,8 +426,8 @@ define(function() { "use strict";
 				forEach(promisesOrValues, function(p, key) {
 					when(p,
 						function(val) { resolver(val, key); },
-						reject,
-						progress);
+						deferred.reject,
+						deferred.progress);
 				});
 			}
 
@@ -483,13 +453,10 @@ define(function() { "use strict";
 		checkCallbacks(1, arguments);
 
 		return when(promisesOrValues, function(promisesOrValues) {
-			return _reduce(promisesOrValues, reduceInto, []);
-		}).then(callback, errback, progressHandler);
-	}
 
-	function reduceInto(current, val, i) {
-		current[i] = val;
-		return current;
+			return _reduce(promisesOrValues, reduceInto, []);
+
+		}).then(callback, errback, progressHandler);
 	}
 
 	/**
@@ -511,38 +478,15 @@ define(function() { "use strict";
 
 		return when(promisesOrValues, function(promisesOrValues) {
 
-			var deferred, resolver, rejecter, handleProgress;
-
-			deferred = defer();
-
-			function resolve(val) {
-				resolver(val);
-			}
-
-			// Wrapper so that rejecter can be replaced
-			function reject(err) {
-				rejecter(err);
-			}
-
-			// Wrapper so that progress can be replaced
-			function progress(update) {
-				handleProgress(update);
-			}
-
-			deferred.promise.always(function () {
-				resolver = rejecter = handleProgress = noop;
-			});
-
-			resolver = deferred.resolve;
-			rejecter = deferred.reject;
-			handleProgress = deferred.progress;
+			var deferred = defer();
 
 			forEach(promisesOrValues, function (p) {
-				when(p, resolve, reject, progress);
+				chain(p, deferred);
 			});
 
-			return when(deferred, callback, errback, progressHandler);
-		});
+			return deferred.promise;
+
+		}).then(callback, errback, progressHandler);
 	}
 
 	/**
@@ -785,6 +729,11 @@ define(function() { "use strict";
 		});
 
 		return reduced;
+	}
+
+	function reduceInto(current, val, i) {
+		current[i] = val;
+		return current;
 	}
 
 	return freeze(when);
