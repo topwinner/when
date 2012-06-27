@@ -343,7 +343,8 @@ define(function() { "use strict";
 			// Replace _then with one that directly notifies with the result.
 			// Replace _resolve so that this Deferred can only be resolved once
 			_then = value.then;
-			_resolve = _progress = noop;
+			_resolve = resolve;
+			_progress = noop;
 
 			// Notify listeners
 			while (listener = listeners[i++]) listener(value);
