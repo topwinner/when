@@ -399,7 +399,7 @@ define(function() { "use strict";
 
 		return when(promisesOrValues, function(promisesOrValues) {
 
-			var toResolve, results, deferred, resolver, rejecter, handleProgress, forEach;
+			var toResolve, results, deferred, resolver, rejecter, handleProgress;
 
 			deferred = defer();
 
@@ -409,7 +409,7 @@ define(function() { "use strict";
 			} else {
 				results = {};
 				toResolve = 0;
-				forEach(promisesOrValues, function() { toResolve++; });
+				forEachKey(promisesOrValues, function() { toResolve++; });
 			}
 
 			// Wrapper so that rejecter can be replaced
