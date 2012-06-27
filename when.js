@@ -406,12 +406,10 @@ define(function() { "use strict";
 			if(promisesOrValues instanceof Array) {
 				results = [];
 				toResolve = Math.max(0, Math.min(howMany, promisesOrValues.length >>> 0));
-				forEach = forEachElement;
 			} else {
 				results = {};
 				toResolve = 0;
-				forEachKey(promisesOrValues, function() { toResolve++; });
-				forEach = forEachKey;
+				forEach(promisesOrValues, function() { toResolve++; });
 			}
 
 			// Wrapper so that rejecter can be replaced
@@ -509,11 +507,42 @@ define(function() { "use strict";
 	 */
 	function any(promisesOrValues, callback, errback, progressHandler) {
 
-		function unwrapSingleResult(val) {
-			return callback ? callback(val[0]) : val[0];
-		}
+		checkCallbacks(2, arguments);
 
-		return some(promisesOrValues, 1, unwrapSingleResult, errback, progressHandler);
+		return when(promisesOrValues, function(promisesOrValues) {
+
+			var deferred, resolver, rejecter, handleProgress;
+
+			deferred = defer();
+
+			function resolve(val) {
+				resolver(val);
+			}
+
+			// Wrapper so that rejecter can be replaced
+			function reject(err) {
+				rejecter(err);
+			}
+
+			// Wrapper so that progress can be replaced
+			function progress(update) {
+				handleProgress(update);
+			}
+
+			deferred.promise.always(function () {
+				resolver = rejecter = handleProgress = noop;
+			});
+
+			resolver = deferred.resolve;
+			rejecter = deferred.reject;
+			handleProgress = deferred.progress;
+
+			forEach(promisesOrValues, function (p) {
+				when(p, resolve, reject, progress);
+			});
+
+			return when(deferred, callback, errback, progressHandler);
+		});
 	}
 
 	/**
@@ -546,19 +575,11 @@ define(function() { "use strict";
 	 */
 	function _map(promisesOrValues, mapFunc) {
 
-		var results, iterate;
-
-		if(promisesOrValues instanceof Array) {
-			results = [];
-			iterate = forEachElement;
-		} else {
-			results = {};
-			iterate = forEachKey;
-		}
+		var results = (promisesOrValues instanceof Array) ? [] : {};
 
 		// Since mapFunc may be async, get all invocations of it into flight
 		// asap, and then use reduce() to collect all the results
-		iterate(promisesOrValues, function(val, i) {
+		forEach(promisesOrValues, function (val, i) {
 			results[i] = when(val, mapFunc);
 		});
 
@@ -692,6 +713,10 @@ define(function() { "use strict";
 				lambda(object[p], p);
 			}
 		}
+	}
+
+	function forEach(objectOrArray, lambda) {
+		(objectOrArray instanceof Array ? forEachElement : forEachKey)(objectOrArray, lambda);
 	}
 
 	// ES5 reduce implementation if native not available
