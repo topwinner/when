@@ -14,6 +14,7 @@ What's New?
 * `when.resolve()` - creates a resolved promise. See [API docs](docs/api.md#whenresolve) below.
 * `deferred.resolve` and `deferred.reject` now return a promise.
 * `deferred.resolve(promise)` puts the deferred into the same state with the same value as promise.
+* `when.all/any/some/map/reduce` now accept an object or promise for an object (in addition to array or promise for array), and will operate on the object's properties (which can, of course, be promises).
 
 [Full Changelog](https://github.com/cujojs/when/wiki/Changelog)
 
