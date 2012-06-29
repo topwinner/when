@@ -12,7 +12,7 @@
 
 (function(define) {
 define(function() { "use strict";
-	var freeze, reduceArray, slice, owns, forEachElement, undef;
+	var freeze, isArray, reduceArray, slice, owns, forEachElement, undef;
 
 	// Public API
 
@@ -395,13 +395,13 @@ define(function() { "use strict";
 			var toResolve, results, deferred, resolver;
 			deferred = defer();
 
-			if(promisesOrValues instanceof Array) {
+			if (isArray(promisesOrValues)) {
 				results = [];
 				toResolve = Math.max(0, Math.min(howMany, promisesOrValues.length >>> 0));
 			} else {
 				results = {};
 				toResolve = 0;
-				forEachKey(promisesOrValues, function() { toResolve++; });
+				forEachKey(promisesOrValues, function () { toResolve++; });
 			}
 
 			// No items in the input, resolve immediately
@@ -413,7 +413,7 @@ define(function() { "use strict";
 				// the returned promise when toResolve reaches zero.
 				// Overwrites resolver var with a noop once promise has
 				// be resolved to cover case where n < promises.length
-				resolver = function(val, key) {
+				resolver = function (val, key) {
 					// This orders the values based on promise resolution order
 					// Another strategy would be to use the original position of
 					// the corresponding promise.
@@ -424,9 +424,11 @@ define(function() { "use strict";
 					}
 				};
 
-				forEach(promisesOrValues, function(p, key) {
+				forEach(promisesOrValues, function (p, key) {
 					when(p,
-						function(val) { resolver(val, key); },
+						function (val) {
+							resolver(val, key);
+						},
 						deferred.reject,
 						deferred.progress);
 				});
@@ -479,13 +481,17 @@ define(function() { "use strict";
 
 		return when(promisesOrValues, function(promisesOrValues) {
 
-			var deferred = defer();
+			var deferred, count;
+
+			deferred = defer();
+			count = 0;
 
 			forEach(promisesOrValues, function (p) {
+				++count;
 				chain(p, deferred);
 			});
 
-			return deferred.promise;
+			return count ? deferred.promise : deferred.resolve();
 
 		}).then(callback, errback, progressHandler);
 	}
@@ -497,7 +503,7 @@ define(function() { "use strict";
 	 *
 	 * @memberOf when
 	 *
-	 * @param promise {Array|Promise} array of anything, may contain a mix
+	 * @param promise {Array|Object|Promise} array of anything, may contain a mix
 	 *      of {@link Promise}s and values
 	 * @param mapFunc {Function} mapping function mapFunc(value) which may return
 	 *      either a {@link Promise} or value
@@ -514,13 +520,13 @@ define(function() { "use strict";
 	 * Private map helper to map an array of promises
 	 * @private
 	 *
-	 * @param promisesOrValues {Array}
+	 * @param promisesOrValues {Array|Object}
 	 * @param mapFunc {Function}
 	 * @return {Promise}
 	 */
 	function _map(promisesOrValues, mapFunc) {
 
-		var results = (promisesOrValues instanceof Array) ? [] : {};
+		var results = isObject(promisesOrValues) ? {} : [];
 
 		// Since mapFunc may be async, get all invocations of it into flight
 		// asap, and then use reduce() to collect all the results
@@ -543,7 +549,7 @@ define(function() { "use strict";
 	 * be a {@link Promise} for the starting value.
 	 * @memberOf when
 	 *
-	 * @param promise {Array|Promise} array of anything, may contain a mix
+	 * @param promise {Array|Object|Promise} array of anything, may contain a mix
 	 *      of {@link Promise}s and values.  May also be a {@link Promise} for
 	 *      an array.
 	 * @param reduceFunc {Function} reduce function reduce(currentValue, nextValue, index, total),
@@ -554,8 +560,8 @@ define(function() { "use strict";
 	 */
 	function reduce(promise, reduceFunc, initialValue) {
 		var args = slice.call(arguments, 1);
-		return when(promise, function(array) {
-			return _reduce.apply(undef, [array].concat(args));
+		return when(promise, function(arrayOrObject) {
+			return _reduce.apply(undef, [arrayOrObject].concat(args));
 		});
 	}
 
@@ -563,16 +569,20 @@ define(function() { "use strict";
 	 * Private reduce to reduce an array of promises
 	 * @private
 	 *
-	 * @param promisesOrValues {Array}
+	 * @param promisesOrValues {Array|Object}
 	 * @param reduceFunc {Function}
 	 * @param initialValue {*}
 	 * @return {Promise}
 	 */
 	function _reduce(promisesOrValues, reduceFunc, initialValue) {
 
+		var args, reduce;
+
+		reduce = isObject(promisesOrValues) ? reduceKeys : reduceArray;
+
 		// Wrap the supplied reduceFunc with one that handles promises and then
 		// delegates to the supplied.
-		var args = [
+		args = [
 			function (current, val, i) {
 				return when(current, function (c) {
 					return when(val, function (value) {
@@ -584,8 +594,7 @@ define(function() { "use strict";
 
 		if (arguments.length > 2) args.push(initialValue);
 
-		return (promisesOrValues instanceof Array ? reduceArray : reduceKeys)
-			.apply(promisesOrValues, args);
+		return reduce.apply(promisesOrValues, args);
 	}
 
 	/**
@@ -639,18 +648,23 @@ define(function() { "use strict";
 
 	slice = [].slice;
 	owns = Object.prototype.hasOwnProperty;
+	isArray = Array.isArray || function(it) { return it instanceof Array; };
+
+	function isObject(it) {
+		return it && typeof it == 'object' && !isArray(it);
+	}
 
 	forEachElement = Array.prototype.forEach
 		? function(array, lambda) {
-		array.forEach(lambda);
-	}
-		: function (array, lambda) {
-		for(var i = 0, len = array.length; i < len; ++i) {
-			if(i in array) {
-				lambda(array[i], i);
-			}
+			array.forEach && array.forEach(lambda);
 		}
-	};
+		: function (array, lambda) {
+			for(var i = 0, len = array.length; i < len; ++i) {
+				if(i in array) {
+					lambda(array[i], i);
+				}
+			}
+		};
 
 	function forEachKey(object, lambda) {
 		for(var p in object) {
@@ -661,7 +675,7 @@ define(function() { "use strict";
 	}
 
 	function forEach(objectOrArray, lambda) {
-		(objectOrArray instanceof Array ? forEachElement : forEachKey)(objectOrArray, lambda);
+		(isArray(objectOrArray) ? forEachElement : forEachKey)(objectOrArray, lambda);
 	}
 
 	// ES5 reduce implementation if native not available
@@ -712,10 +726,12 @@ define(function() { "use strict";
 			return reduced;
 		};
 
-	function reduceKeys(object, reduceFunc, initialVal) {
-		var reduced, p;
+	function reduceKeys(reduceFunc, initialVal) {
+		var reduced, p, object;
 
-		if(arguments.length > 2) {
+		object = Object(this);
+
+		if(arguments.length > 1) {
 			reduced = initialVal;
 		} else {
 			for(p in object) {

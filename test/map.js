@@ -1,8 +1,9 @@
 (function(buster, when, delay) {
 
-var assert, fail, resolved;
+var assert, refute, fail, resolved;
 
 assert = buster.assert;
+refute = buster.refute;
 fail = buster.assertions.fail;
 
 resolved = when.resolve;
@@ -22,6 +23,24 @@ buster.testCase('when.map', {
 		when.map(input, mapper).then(
 			function(results) {
 				assert.equals(results, [2,4,6]);
+			},
+			fail
+		).always(done);
+	},
+
+	'should map empty array': function(done) {
+		when.map([], mapper).then(
+			function(results) {
+				assert.equals(results, []);
+			},
+			fail
+		).always(done);
+	},
+
+	'should map promise for empty array': function(done) {
+		when.map(resolved([]), mapper).then(
+			function(results) {
+				assert.equals(results, []);
 			},
 			fail
 		).always(done);
@@ -66,7 +85,7 @@ buster.testCase('when.map', {
 		).always(done);
 	},
 
-	'should resolve to empty array when input promise does not resolve to an array': function(done) {
+	'should resolve to empty array when input promise does not resolve to a supported input': function(done) {
 		when.map(resolved(123), mapper).then(
 			function(result) {
 				assert.equals(result, []);
