@@ -1,8 +1,9 @@
 (function(buster, when) {
 
-var assert, fail, resolved, rejected;
+var assert, refute, fail, resolved, rejected;
 
 assert = buster.assert;
+refute = buster.refute;
 fail = buster.assertions.fail;
 
 resolved = when.resolve;
@@ -16,7 +17,7 @@ buster.testCase('when.all', {
 				assert.equals(result, []);
 			},
 			fail
-		).then(done, done);
+		).always(done);
 	},
 
 	'should resolve values array': function(done) {
@@ -26,7 +27,7 @@ buster.testCase('when.all', {
 				assert.equals(results, input);
 			},
 			fail
-		).then(done, done);
+		).always(done);
 	},
 
 	'should resolve promises array': function(done) {
@@ -36,7 +37,7 @@ buster.testCase('when.all', {
 				assert.equals(results, [1, 2, 3]);
 			},
 			fail
-		).then(done, done);
+		).always(done);
 	},
 
 	'should resolve sparse array input': function(done) {
@@ -46,7 +47,7 @@ buster.testCase('when.all', {
 				assert.equals(results, input);
 			},
 			fail
-		).then(done, done);
+		).always(done);
 	},
 
 	'should reject if any input promise rejects': function(done) {
@@ -56,7 +57,7 @@ buster.testCase('when.all', {
 			function(failed) {
 				assert.equals(failed, 2);
 			}
-		).then(done, done);
+		).always(done);
 	},
 
 	'should throw if called with something other than a valid input plus callbacks': function() {
@@ -76,7 +77,7 @@ buster.testCase('when.all', {
 				assert.equals(results, expected);
 			},
 			fail
-		).then(done, done);
+		).always(done);
 	},
 
 	'should resolve to empty array when input promise does not resolve to array': function(done) {
@@ -85,7 +86,7 @@ buster.testCase('when.all', {
 				assert.equals(result, []);
 			},
 			fail
-		).then(done, done);
+		).always(done);
 	}
 });
 
