@@ -401,7 +401,14 @@ define(function() { "use strict";
 			} else {
 				results = {};
 				toResolve = 0;
-				forEachKey(promisesOrValues, function () { toResolve++; });
+				// Could use Object.keys, but would need to shim it.  So simply
+				// count the properties until we hit howMany or run out of props.
+				for(var p in promisesOrValues) {
+					if(owns.call(promisesOrValues, p)) {
+						toResolve++;
+						if(toResolve === howMany) break;
+					}
+				}
 			}
 
 			// No items in the input, resolve immediately
@@ -457,7 +464,7 @@ define(function() { "use strict";
 
 		return when(promisesOrValues, function(promisesOrValues) {
 
-			return _reduce(promisesOrValues, reduceInto, []);
+			return _reduce(promisesOrValues, reduceInto, isObject(promisesOrValues) ? {} : []);
 
 		}).then(callback, errback, progressHandler);
 	}

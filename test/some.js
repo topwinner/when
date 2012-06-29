@@ -130,7 +130,7 @@ buster.testCase('when.some', {
 
 		when.some(expected, 1,
 			function(result) {
-				assert.equals(result, expected);
+				assert.equals(result, { a: 1 });
 			},
 			fail
 		).then(done, done);
