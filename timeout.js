@@ -42,18 +42,18 @@ define(['./when'], function(when) {
         }, msec);
 
         function cancelTimeout() {
-            clearTimeout(timeout);
-            timeout = undef;
+            timeout = clearTimeout(timeout);
         }
 
         when(promise,
             function(value) {
                 cancelTimeout();
-                return deferred.resolve(value);
+                deferred.resolve(value);
+                return value;
             },
             function(reason) {
                 cancelTimeout();
-                return deferred.reject(reason);
+                deferred.reject(reason);
             }
         );
 
