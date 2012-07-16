@@ -682,7 +682,13 @@ define(function() { "use strict";
 	}
 
 	function forEach(objectOrArray, lambda) {
-		(isArray(objectOrArray) ? forEachElement : forEachKey)(objectOrArray, lambda);
+		// This could be compressed into a ?:, but it's likely that many VMs
+		// would have a harder time optimizing it in that case
+		if (isArray(objectOrArray)) {
+			forEachElement(objectOrArray, lambda);
+		} else {
+			forEachKey(objectOrArray, lambda);
+		}
 	}
 
 	// ES5 reduce implementation if native not available
