@@ -10,9 +10,20 @@
  * @version 1.4.4
  */
 
-(function(define) {
-define(function() { "use strict";
-	var freeze, reduceArray, slice, undef;
+(function(define, global) {
+define(function(module) { "use strict";
+	var secure, freeze, reduceArray, slice, undef;
+
+	// Do we need to be extra-secure? i.e. freeze promise, etc.
+	if(module && typeof module.config === 'function') {
+		secure = module.config().secure;
+	} else if(typeof process == 'object') {
+		secure = 'WHEN_SECURE' in process.env;
+	} else {
+		secure = global.whenSecure;
+	}
+
+	freeze = (secure === true && Object.freeze) || function(o) { return o; };
 
 	// Public API
 
@@ -125,12 +136,6 @@ define(function() { "use strict";
 			return rejected(value);
 		});
 	}
-
-	/**
-	 * Object.freeze
-	 * @private
-	 */
-	freeze = Object.freeze || function(o) { return o; };
 
 	/**
 	 * Trusted Promise constructor.  A Promise created from this constructor is
@@ -751,9 +756,10 @@ define(function() { "use strict";
 });
 })(typeof define == 'function'
 	? define
-	: function (factory) { typeof exports != 'undefined'
+	: function (factory) { typeof exports === 'object'
 		? (module.exports = factory())
 		: (this.when      = factory());
-	}
+	},
 	// Boilerplate for AMD, Node, and browser global
+	this
 );
