@@ -11,20 +11,26 @@
  */
 
 (function(define, global) {
-define(function(module) { "use strict";
-	var secure, freeze, reduceArray, slice, undef;
+define(['module'], function(module) { "use strict";
+	var freeze, reduceArray, slice, envFreeze, falseRx, undef;
+
+	falseRx = /^false$/i;
+	envFreeze = 'WHEN_PARANOID';
 
 	// Do we need to be extra-secure? i.e. freeze promise, etc.
 	if(module && typeof module.config === 'function') {
-		secure = module.config().secure !== false;
+		freeze = module.config().paranoid !== false;
 	} else if(typeof process == 'object') {
-		secure = !/^false$/i.test(process.env.WHEN_SECURE);
+		freeze = !falseRx.test(process.env[envFreeze]);
+	} else if(typeof system == 'object') {
+		freeze = !falseRx.test(system.env[envFreeze]);
 	} else {
-		secure = global.whenSecure !== false;
+		freeze = !(global && global.when_config && global.when_config.paranoid === false);
 	}
+	console.log(freeze, global, global.when_config);
 
 	// If secure and Object.freeze is available, use it.
-	freeze = (secure && Object.freeze) || function(o) { return o; };
+	freeze = (freeze && Object.freeze) || function(o) { return o; };
 
 	//
 	// Public API
@@ -759,7 +765,7 @@ define(function(module) { "use strict";
 });
 })(typeof define == 'function'
 	? define
-	: function (factory) { typeof exports === 'object'
+	: function (deps, factory) { typeof exports === 'object'
 		? (module.exports = factory())
 		: (this.when      = factory());
 	},
