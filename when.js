@@ -16,16 +16,19 @@ define(function(module) { "use strict";
 
 	// Do we need to be extra-secure? i.e. freeze promise, etc.
 	if(module && typeof module.config === 'function') {
-		secure = module.config().secure;
+		secure = module.config().secure !== false;
 	} else if(typeof process == 'object') {
-		secure = 'WHEN_SECURE' in process.env;
+		secure = !/^false$/i.test(process.env.WHEN_SECURE);
 	} else {
-		secure = global.whenSecure;
+		secure = global.whenSecure !== false;
 	}
 
-	freeze = (secure === true && Object.freeze) || function(o) { return o; };
+	// If secure and Object.freeze is available, use it.
+	freeze = (secure && Object.freeze) || function(o) { return o; };
 
+	//
 	// Public API
+	//
 
 	when.defer     = defer;     // Create a deferred
 	when.resolve   = resolve;   // Create a resolved promise
