@@ -35,14 +35,6 @@ define(function () {
 
 	when.isPromise = isPromise; // Determine if a thing is a promise
 
-	// NOTE: For sync testing only:
-	//	nextTick = function(t) { t(); };
-
-	/*global setImmediate:true */
-	nextTick = typeof process === 'object' ? process.nextTick
-	: typeof setImmediate === 'function' ? setImmediate
-	: function(task) { setTimeout(task, 0); };
-
 	/**
 	 * Register an observer for a promise or immediate value.
 	 *
@@ -246,9 +238,16 @@ define(function () {
 	 *
 	 * @return {Deferred}
 	 */
-	function defer() {
-		var deferred, promise, handlers, progressHandlers,
+	function defer(options) {
+		var deferred, promise, handlers, progressHandlers, _nextTick,
 			_bind, _progress, _resolve;
+
+		if(!options) {
+			options = {};
+		}
+
+		_nextTick = options.nextTick || nextTick;
+
 		/**
 		 * The promise for the new deferred
 		 * @type {Promise}
@@ -309,7 +308,7 @@ define(function () {
 		 * @param {*} update progress event payload to pass to all listeners
 		 */
 		_progress = function(update) {
-			processQueue(progressHandlers, update);
+			processQueue(_nextTick, progressHandlers, update);
 			return update;
 		};
 
@@ -330,7 +329,7 @@ define(function () {
 
 			// Make _bind invoke callbacks "immediately"
 			_bind = function(fulfilled, rejected, _, next) {
-				nextTick(function() {
+				_nextTick(function() {
 					value.then(fulfilled, rejected).then(
 						function(value)  { next.resolve(value); },
 						function(reason) { next.reject(reason); },
@@ -340,7 +339,7 @@ define(function () {
 			};
 
 			// Notify handlers
-			processQueue(handlers, value);
+			processQueue(_nextTick, handlers, value);
 			handlers = progressHandlers = undef;
 
 			return promise;
@@ -356,7 +355,7 @@ define(function () {
 		 * @return {Promise} new Promise
 		 */
 		function then(onFulfilled, onRejected, onProgress) {
-			var deferred = defer();
+			var deferred = defer(options);
 
 			_bind(onFulfilled, onRejected, onProgress, deferred);
 
@@ -648,11 +647,12 @@ define(function () {
 
 	/**
 	 * Apply all functions in queue to value
+	 * @param {function} runTask task runner function
 	 * @param {Array} queue array of functions to execute
 	 * @param {*} value argument passed to each function
 	 */
-	function processQueue(queue, value) {
-		nextTick(function() {
+	function processQueue(runTask, queue, value) {
+		runTask(function() {
 			var handler, i = 0;
 			while (handler = queue[i++]) {
 				handler(value);
@@ -743,6 +743,55 @@ define(function () {
 
 			return reduced;
 		};
+
+	// NOTE: For sync testing only:
+	//	nextTick = function(t) { t(); };
+
+	/*global setImmediate:true msSetImmediate:true MessageChannel:true*/
+	if (typeof process !== 'undefined') {
+		// node
+		nextTick = process.nextTick;
+	} else if (typeof msSetImmediate === 'function') {
+		// IE 10. From http://github.com/kriskowal/q
+		// bind is necessary
+		nextTick = msSetImmediate.bind(window);
+	} else if (typeof setImmediate === 'function') {
+		nextTick = setImmediate;
+	} else if (typeof MessageChannel !== 'undefined') {
+		nextTick = initMessageChannel();
+	} else {
+		// older envs w/only setTimeout
+		nextTick = function (task) {
+			setTimeout(task, 0);
+		};
+	}
+
+	/**
+	 * MessageChannel for browsers that support it
+	 * From http://www.nonblocking.io/2011/06/windownexttick.html
+	 */
+	function initMessageChannel() {
+		var channel, head, tail;
+
+		channel = new MessageChannel();
+		head = {};
+		tail = head;
+
+		channel.port1.onmessage = function () {
+			var task;
+
+			head = head.next;
+			task = head.task;
+			delete head.task;
+
+			task();
+		};
+
+		return function (task) {
+			tail = tail.next = {task: task};
+			channel.port2.postMessage(0);
+		};
+	}
 
 	function identity(x) {
 		return x;
