@@ -79,7 +79,20 @@ define(function () {
 		 * @return {Promise}
 		 */
 		always: function(onFulfilledOrRejected, onProgress) {
-			return this.then(onFulfilledOrRejected, onFulfilledOrRejected, onProgress);
+			return this.then(
+				function(value) {
+					return when(onFulfilledOrRejected(value), function() {
+						return value;
+					});
+				},
+				function(reason) {
+					return when(onFulfilledOrRejected(reason), function() {
+						return rejected(reason);
+					});
+				},
+				onProgress
+			);
+//			return this.then(onFulfilledOrRejected, onFulfilledOrRejected, onProgress);
 		},
 
 		/**
@@ -660,7 +673,8 @@ define(function () {
 	//
 
 	/*global setImmediate:true */
-	nextTick = typeof setImmediate === 'function' ? setImmediate
+	nextTick = typeof setImmediate === 'function'
+		? typeof window === 'undefined' ? setImmediate : setImmediate.bind(window)
 		: typeof process === 'object' ? process.nextTick
 			: function(task) { setTimeout(task, 0); };
 
