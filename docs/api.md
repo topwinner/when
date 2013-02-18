@@ -293,13 +293,16 @@ d.notify(update);
 
 # Creating promises
 
+Typically, promises are created as part of a [Deferred](#deferred) operation.  However, there are occasions when the fate of a promise is already known.
+
 ## when.defer()
 
 ```js
 var deferred = when.defer();
+var promise = deferred.promise;
 ```
 
-Create a new [Deferred](#deferred) that can resolved at a later time.
+Create a new [Deferred](#deferred) that can be resolved or rejected at a later time.  It's associated promise will also be resolved or rejected.
 
 ## when.resolve()
 
@@ -341,6 +344,8 @@ Return true if `anything` is truthy and implements the then() promise API.  Note
 
 # Joining promises
 
+Promises can be immensely helpful when coordinating multiple *eventual outcomes*.
+
 ## when.join()
 
 ```js
@@ -348,6 +353,15 @@ var joinedPromise = when.join(promiseOrValue1, promiseOrValue2, ...);
 ```
 
 Return a promise that will resolve only once *all* the inputs have resolved.  The resolution value of the returned promise will be an array containing the resolution values of each of the inputs.
+
+> TODO: what happens if one (or more) rejects?
+
+```js
+// sumPromise will resolve to the greater of two eventual values
+var largerPromise = when.join(promise1, promise2).then(function (values) {
+	return values[0] > values[1] ? values[0] : values[1];
+});
+```
 
 ### See also:
 * [when.all()](#whenall) - resolving an Array of promises
@@ -358,9 +372,9 @@ Return a promise that will resolve only once *all* the inputs have resolved.  Th
 var promise = when.chain(promiseOrValue, resolver, optionalValue)
 ```
 
-Arrange for `resolver` to be resolved when `promiseOrValue` resolves.  If `optionalValue` is provided, `resolver` will be resolved with `optionalValue`, if provided, or otherwise with the resolution value of `promiseOrValue`.
+Arrange for `resolver` to be resolved when `promiseOrValue` resolves.  If `optionalValue` is provided, `resolver` will be resolved with `optionalValue`, or otherwise with the resolution value of `promiseOrValue`.
 
-Returns a new promise that will resolve when `promiseOrValue` resolves, with `optionalValue` as its resolution value, if provided, or otherwise with the resolution value of `promiseOrValue`.
+Returns a new promise that will also resolve when `promiseOrValue` resolves, with `optionalValue` as its resolution value, if provided, or otherwise with the resolution value of `promiseOrValue`.
 
 Where:
 
@@ -368,7 +382,11 @@ Where:
 * `resolver` - any object that supports the [Resolver API](#resolver)
 * `optionalValue` - any value.  **Note:** May be a promise if `resolver` supports being resolved with another promise.  When.js resolvers *do* support this, but other implementations may not.
 
+> TODO: this needs an example badly.
+
 # Arrays of promises
+
+When.js provides methods to use array-like patterns to coordinate several promises.
 
 ## when.all()
 
@@ -381,6 +399,8 @@ Where:
 * array is an Array *or a promise for an array*, which may contain promises and/or values.
 
 Return a promise that will resolve only once *all* the items in `array` have resolved.  The resolution value of the returned promise will be an array containing the resolution values of each of the items in `array`.
+
+> TODO: what happens if one (or more) rejects?
 
 ### See also:
 * [when.join()](#whenjoin) - joining multiple promises
@@ -397,6 +417,8 @@ Where:
 
 Traditional map function, similar to `Array.prototype.map()`, but allows input to contain promises and/or values, and mapFunc may return either a value or a promise.
 
+> TODO: what happens if one (or more) rejects?
+
 The map function should have the signature:
 
 ```js
@@ -405,7 +427,7 @@ mapFunc(item)
 
 Where:
 
-* `item` is a fully resolved value of a promise or value in `promisesOrValues`
+* `item` is a fully resolved value
 
 ## when.reduce()
 
@@ -428,11 +450,20 @@ reduceFunc(currentValue, nextItem, index, total)
 Where:
 
 * `currentValue` is the current accumulated reduce value
-* `nextItem` is the fully resolved value of the promise or value at `index` in `promisesOrValues`
-* `index` the *basis* of `nextItem` ... practically speaking, this is the array index of the promiseOrValue corresponding to `nextItem`
+* `nextItem` is the fully resolved value at `index` in `promisesOrValues`
+* `index` is the *basis* of `nextItem` ... practically speaking, this is the array index of the promiseOrValue corresponding to `nextItem`
 * `total` is the total number of items in `promisesOrValues`
 
+``js
+// sum the eventual values of several promises
+var sumPromise = when.reduce(inputPromisesOrValues, function (sum, value) {
+	return sum += value;
+}, 0);
+```
+
 # Competitive races
+
+The *competitive race* pattern may be used if one or more of the entire possible set of *eventual outcomes* are sufficient to resolve a promise.
 
 ## when.any()
 
@@ -457,6 +488,8 @@ Where:
 * array is an Array *or a promise for an array*, which may contain promises and/or values.
 
 Initiates a competitive race that allows `howMany` winners, returning a promise that will resolve when `howMany` of the items in `array` resolve.  The returned promise will reject if it becomes impossible for `howMany` items to resolve--that is, when `(array.length - howMany) + 1` items reject.  The resolution value of the returned promise will be an array of `howMany` winning item resolution values.  The rejection value will be an array of `(array.length - howMany) + 1` rejection reasons.
+
+> TODO: a real-world use case would be *extremely* valuable here
 
 # Unbounded lists
 
